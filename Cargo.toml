@@ -1,0 +1,13 @@
+[package]
+name = "zim"
+version = "0.1.0"
+authors = ["Andrew Chin <achin@eminence32.net>"]
+
+[dependencies]
+byteorder = "0.4.2"
+memmap = "0.2.3"
+xz-decom = { path="/storage/home/achin/devel/rust_libs/xz-decom/", version="0.1" }
+
+[[bin]]
+name = "extract_zim"
+path = "extract_zim.rs"
