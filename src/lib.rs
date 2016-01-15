@@ -161,7 +161,7 @@ pub struct Zim {
     // uuid_1
     // uuid_2
     pub article_count: u32,
-    cluster_count: u32,
+    pub cluster_count: u32,
     url_tbl_off: u64, //offset from the start of the file
     title_tbl_off: u64, //offset from the start of the file
     cluster_tbl_off: u64,
