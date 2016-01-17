@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `xz_dec_init` fn in crate `xz_embedded_sys`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, xz_dec_init">
+
+    <title>xz_embedded_sys::xz_dec_init - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>xz_embedded_sys</a></p><script>window.sidebarCurrent = {name: 'xz_dec_init', ty: 'fn', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content fn">
+<h1 class='fqn'><span class='in-band'><a href='index.html'>xz_embedded_sys</a>::<wbr><a class='fn' href=''>xz_dec_init</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-99' class='srclink' href='../src/xz_embedded_sys/lib.rs.html#225' title='goto source code'>[src]</a></span></h1>
+<pre class='rust fn'>pub unsafe extern fn xz_dec_init(mode: <a class='enum' href='../xz_embedded_sys/enum.xz_mode.html' title='xz_embedded_sys::xz_mode'>xz_mode</a>, dict_max: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.pointer.html'>*mut <a class='enum' href='../xz_embedded_sys/enum.xz_dec.html' title='xz_embedded_sys::xz_dec'>xz_dec</a></a></pre><div class='docblock'><p>Allocate and initialize a XZ decoder state</p>
+
+<p>@mode: Operation mode</p>
+
+<p>@dict_max: Maximum size of the LZMA2 dictionary (history buffer) for
+multi-call decoding. This is ignored in single-call mode
+(mode == XZ_SINGLE). LZMA2 dictionary is always 2<sup>n</sup> bytes
+or 2<sup>n</sup> + 2<sup>n-1</sup> bytes (the latter sizes are less common
+in practice), so other values for dict_max don&#39;t make sense.
+In the kernel, dictionary sizes of 64 KiB, 128 KiB, 256 KiB,
+512 KiB, and 1 MiB are probably the only reasonable values,
+except for kernel and initramfs images where a bigger
+dictionary can be fine and useful.</p>
+
+<p>Single-call mode (XZ_SINGLE): xz_dec_run() decodes the whole stream at
+once. The caller must provide enough output space or the decoding will
+fail. The output space is used as the dictionary buffer, which is why
+there is no need to allocate the dictionary as part of the decoder&#39;s
+internal state.</p>
+
+<p>Because the output buffer is used as the workspace, streams encoded using
+a big dictionary are not a problem in single-call mode. It is enough that
+the output buffer is big enough to hold the actual uncompressed data; it
+can be smaller than the dictionary size stored in the stream headers.</p>
+
+<p>Multi-call mode with preallocated dictionary (XZ_PREALLOC): dict_max bytes
+of memory is preallocated for the LZMA2 dictionary. This way there is no
+risk that xz_dec_run() could run out of memory, since xz_dec_run() will
+never allocate any memory. Instead, if the preallocated dictionary is too
+small for decoding the given input stream, xz_dec_run() will return
+XZ_MEMLIMIT_ERROR. Thus, it is important to know what kind of data will be
+decoded to avoid allocating excessive amount of memory for the dictionary.</p>
+
+<p>Multi-call mode with dynamically allocated dictionary (XZ_DYNALLOC):
+dict_max specifies the maximum allowed dictionary size that xz_dec_run()
+may allocate once it has parsed the dictionary size from the stream
+headers. This way excessive allocations can be avoided while still
+limiting the maximum memory usage to a sane value to prevent running the
+system out of memory when decompressing streams from untrusted sources.</p>
+
+<p>On success, xz_dec_init() returns a pointer to struct xz_dec, which is
+ready to be used with xz_dec_run(). If memory allocation fails,
+xz_dec_init() returns NULL.</p>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "xz_embedded_sys";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

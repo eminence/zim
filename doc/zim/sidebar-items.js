@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MimeType",""],["Target",""]],"struct":[["Cluster","A cluster of blobs"],["DirectoryEntry","Holds metadata about an article"],["DirectoryIterator",""],["ParsingError","An error type for parsing errors"],["Zim","Represents a ZIM file"]]});

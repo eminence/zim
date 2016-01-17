@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Zim` struct in crate `zim`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Zim">
+
+    <title>zim::Zim - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>zim</a></p><script>window.sidebarCurrent = {name: 'Zim', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>zim</a>::<wbr><a class='struct' href=''>Zim</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-197' class='srclink' href='../src/zim/lib.rs.html#218-249' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Zim {
+    pub article_count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>,
+    pub cluster_count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>,
+    pub main_page_idx: <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt;,
+    // some fields omitted
+}</pre><div class='docblock'><p>Represents a ZIM file</p>
+</div><h2 class='fields'>Fields</h2>
+<table><tr class='stab '>
+                                  <td id='structfield.article_count'><code>article_count</code></td><td><div class='docblock'><p>Number of articles in this archive</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.cluster_count'><code>cluster_count</code></td><td><div class='docblock'><p>Number of clusters in this archive</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.main_page_idx'><code>main_page_idx</code></td><td><div class='docblock'><p>If Main Page is defined, this is the index to the page</p>
+</div></td></tr></table><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../zim/struct.Zim.html' title='zim::Zim'>Zim</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt;&gt;(p: P) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a class='struct' href='../zim/struct.Zim.html' title='zim::Zim'>Zim</a>, <a class='struct' href='../zim/struct.ParsingError.html' title='zim::ParsingError'>ParsingError</a>&gt;</code></h4>
+<div class='docblock'><p>Loads a Zim file</p>
+
+<p>Loads a Zim file and parses the header, and the url, title, and cluster offset tables.  The
+rest of the data isn&#39;t parsed until it&#39;s needed, so this should be fairly quick.</p>
+</div><h4 id='method.get_mimetype' class='method'><code>fn <a href='#method.get_mimetype' class='fnname'>get_mimetype</a>(&amp;self, id: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='enum' href='../zim/enum.MimeType.html' title='zim::MimeType'>MimeType</a>&gt;</code></h4>
+<div class='docblock'><p>Indexes into the ZIM mime_table.</p>
+</div><h4 id='method.iterate_by_urls' class='method'><code>fn <a href='#method.iterate_by_urls' class='fnname'>iterate_by_urls</a>(&amp;self) -&gt; <a class='struct' href='../zim/struct.DirectoryIterator.html' title='zim::DirectoryIterator'>DirectoryIterator</a></code></h4>
+<div class='docblock'><p>Iterates over articles, sorted by URL.</p>
+
+<p>For performance reasons, you might want to extract by cluster instead.</p>
+</div><h4 id='method.get_by_url_index' class='method'><code>fn <a href='#method.get_by_url_index' class='fnname'>get_by_url_index</a>(&amp;self, idx: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../zim/struct.DirectoryEntry.html' title='zim::DirectoryEntry'>DirectoryEntry</a>&gt;</code></h4>
+<div class='docblock'><p>Returns the <code>DirectoryEntry</code> for the article found at the given URL index.</p>
+
+<p>idx must be between 0 and <code>article_count</code></p>
+</div><h4 id='method.get_cluster' class='method'><code>fn <a href='#method.get_cluster' class='fnname'>get_cluster</a>(&amp;self, idx: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../zim/struct.Cluster.html' title='zim::Cluster'>Cluster</a>&gt;</code></h4>
+<div class='docblock'><p>Returns the given <code>Cluster</code></p>
+
+<p>idx must be between 0 and <code>cluster_count</code></p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "zim";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
