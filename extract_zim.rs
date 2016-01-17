@@ -10,10 +10,8 @@ use std::path::Path;
 fn main() {
 
 
-    let zim = Zim::new("wikispecies_en_all_2015-11.zim").unwrap();
+    let zim = Zim::new("wikispecies_en_all_2015-11.zim").ok().unwrap();
     let root_output = Path::new("zim_output_3");
-    //assert_eq!(zim.article_count, 252377);
-    println!("{:?}", zim.mime_table);
 
     // map between cluster and directory entry
     let mut cluster_map = HashMap::new();
@@ -38,7 +36,7 @@ fn main() {
     for (cid, entries) in cluster_map {
         //println!("{}", cid);
         //println!("{:?}", entries);
-        let cluster = zim.get_cluster(cid);
+        let cluster = zim.get_cluster(cid).unwrap();
 
         for entry in entries {
             if let Some(Target::Cluster(_cid, bid)) = entry.target {
@@ -61,7 +59,7 @@ fn main() {
     for entry in zim.iterate_by_urls() {
         // get redirect entry
         if let Some(Target::Redirect(redir)) = entry.target {
-            let redir = zim.get_by_url_index(redir);
+            let redir = zim.get_by_url_index(redir).unwrap();
 
             let mut s = String::new();
             s.push(redir.namespace);
@@ -79,7 +77,7 @@ fn main() {
     }
 
     if let Some(main_page_idx) = zim.main_page_idx {
-        let page = zim.get_by_url_index(main_page_idx);
+        let page = zim.get_by_url_index(main_page_idx).unwrap();
         println!("Main page is {}", page.url);
     }
 

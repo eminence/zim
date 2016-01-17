@@ -1,3 +1,11 @@
+//! This crate provides a pure-rust library for reading ZIM files.
+//!
+//! ZIM files are a format used primarily to store wikis (such as Wikipedia and others based on
+//! MediaWiki).
+//!
+//! For more into, see the [OpenZIM website](http://www.openzim.org/wiki/OpenZIM)
+//! 
+
 extern crate byteorder;
 extern crate memmap;
 extern crate xz_decom;
@@ -5,15 +13,62 @@ extern crate xz_decom;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Cursor;
 use memmap::{Mmap, MmapView};
-use xz_decom::decompress;
+use xz_decom::{decompress, XZError};
 
 use std::fs::File;
 use std::io::Read;
 use std::io::BufRead;
 use std::path::Path;
+use std::error::Error;
+use std::convert::From;
+
+
+/// An error type for parsing errors
+pub struct ParsingError {
+    msg: &'static str,
+    cause: Option<Box<Error>>
+}
+
+impl From<XZError> for ParsingError {
+    fn from(e: XZError) -> ParsingError {
+        ParsingError {
+            msg: "Error decoding compressed data",
+            cause: Some(Box::new(e))
+        }
+    }
+}
+
+impl From<byteorder::Error> for ParsingError {
+    fn from(e: byteorder::Error) -> ParsingError {
+        ParsingError {
+            msg: "Error reading bytestream",
+            cause: Some(Box::new(e))
+        }
+    }
+}
+
+impl From<std::string::FromUtf8Error> for ParsingError {
+    fn from(e: std::string::FromUtf8Error) -> ParsingError {
+        ParsingError {
+            msg: "Error converting to string",
+            cause: Some(Box::new(e))
+        }
+    }
+}
+
+impl From<std::io::Error> for ParsingError {
+    fn from(e: std::io::Error) -> ParsingError {
+        ParsingError {
+            msg: "Error reading bytestream",
+            cause: Some(Box::new(e))
+        }
+    }
+}
+
 
 #[derive(Debug, PartialEq)]
 pub enum MimeType {
+    /// A special "MimeType" that represents a redirection
     Redirect,
     LinkTarget,
     DeletedEntry,
@@ -28,6 +83,10 @@ pub enum Target {
     Cluster(u32, u32)
 }
 
+/// A cluster of blobs
+///
+/// Within an ZIM archive, clusters contain several blobs of data that are all compressed together.
+/// Each blob is the data for an article.
 //#[derive(Debug)]
 pub struct Cluster {
     start_off: u64,
@@ -39,7 +98,7 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    fn new(zim: &Zim, idx: u32) -> Cluster {
+    fn new(zim: &Zim, idx: u32) -> Result<Cluster, ParsingError> {
         let idx = idx as usize;
         let this_cluster_off = zim.cluster_list[idx];
         let next_cluster_off = if idx < zim.cluster_list.len()-1 {
@@ -61,7 +120,7 @@ impl Cluster {
         let comp_type = slice[0];
         let mut blob_list = Vec::new(); 
         let data: Vec<u8> = if comp_type == 4 {
-            let data = decompress(&slice[1..total_cluster_size]);
+            let data = try!(decompress(&slice[1..total_cluster_size]));
             println!("Decompressed {} bytes of data", data.len());
             data
         } else {
@@ -71,7 +130,7 @@ impl Cluster {
         {
             let mut cur = Cursor::new(&data);
             loop {
-                let offset = cur.read_u32::<LittleEndian>().unwrap();
+                let offset = try!(cur.read_u32::<LittleEndian>());
                 blob_list.push(offset);
                 if offset as usize >= datalen {
                     //println!("at end");
@@ -80,13 +139,13 @@ impl Cluster {
             }
         }
 
-        Cluster {
+        Ok(Cluster {
             comp_type: comp_type,
             start_off: this_cluster_off,
             end_off: next_cluster_off,
             data: data,
             blob_list: blob_list,
-        }
+        })
         
     }
     pub fn get_blob(&self, idx: u32) -> &[u8] {
@@ -96,6 +155,7 @@ impl Cluster {
     }
 }
 
+/// Holds metadata about an article
 #[derive(Debug)]
 pub struct DirectoryEntry {
     pub mime_type: MimeType,
@@ -107,52 +167,53 @@ pub struct DirectoryEntry {
 }
 
 impl DirectoryEntry {
-    fn new(zim: &Zim, s: &[u8]) -> DirectoryEntry {
+    fn new(zim: &Zim, s: &[u8]) -> Result<DirectoryEntry, ParsingError> {
         let mut cur = Cursor::new(s);
-        let mime_id = cur.read_u16::<LittleEndian>().unwrap();
-        let mime_type = zim.get_mimetype(mime_id).unwrap();
-        let _ = cur.read_u8().unwrap();
-        let namespace = cur.read_u8().unwrap();
-        let rev = cur.read_u32::<LittleEndian>().unwrap();
+        let mime_id = try!(cur.read_u16::<LittleEndian>());
+        let mime_type = try!(zim.get_mimetype(mime_id).ok_or(ParsingError{msg: "No such Mimetype", cause: None}));
+        let _ = try!(cur.read_u8());
+        let namespace = try!(cur.read_u8());
+        let rev = try!(cur.read_u32::<LittleEndian>());
         let mut target = None;
 
 
         if mime_type == MimeType::Redirect {
             // this is an index into the URL table
-            target = Some(Target::Redirect(cur.read_u32::<LittleEndian>().unwrap()));
+            target = Some(Target::Redirect(try!(cur.read_u32::<LittleEndian>())));
         } else if mime_type == MimeType::LinkTarget || mime_type == MimeType::DeletedEntry {
 
         } else {
-            let cluster_number = cur.read_u32::<LittleEndian>().unwrap();
-            let blob_number = cur.read_u32::<LittleEndian>().unwrap();
+            let cluster_number = try!(cur.read_u32::<LittleEndian>());
+            let blob_number = try!(cur.read_u32::<LittleEndian>());
             target = Some(Target::Cluster(cluster_number, blob_number));
         }
        
         let url = {
             let mut vec = Vec::new();
-            let size = cur.read_until(0, &mut vec).unwrap();
+            let size = try!(cur.read_until(0, &mut vec));
             vec.truncate(size - 1);
-            String::from_utf8(vec).unwrap()
+            try!(String::from_utf8(vec))
         };
         let title = {
             let mut vec = Vec::new();
-            let size = cur.read_until(0, &mut vec).unwrap();
+            let size = try!(cur.read_until(0, &mut vec));
             vec.truncate(size - 1);
-            String::from_utf8(vec).unwrap()
+            try!(String::from_utf8(vec))
         };
 
 
-        DirectoryEntry{
+        Ok(DirectoryEntry{
             mime_type: mime_type,
             namespace: std::char::from_u32(namespace as u32).unwrap(),
             revision: rev,
             url: url,
             title: title,
             target: target,
-        }
+        })
     }
 }
 
+/// Represents a ZIM file
 #[allow(dead_code)]
 pub struct Zim {
     // Zim structure data:
@@ -160,12 +221,15 @@ pub struct Zim {
     version: u32,
     // uuid_1
     // uuid_2
+    /// Number of articles in this archive
     pub article_count: u32,
+    /// Number of clusters in this archive
     pub cluster_count: u32,
     url_tbl_off: u64, //offset from the start of the file
     title_tbl_off: u64, //offset from the start of the file
     cluster_tbl_off: u64,
     mime_tbl_off: u64, // should always be 80
+    /// If Main Page is defined, this is the index to the page
     pub main_page_idx: Option<u32>, // an index into the url table
     layout_page_idx: Option<u32>,
     checksum_off: u64,
@@ -174,7 +238,8 @@ pub struct Zim {
     f: File,
     master_view: MmapView,
 
-    pub mime_table: Vec<String>, // a list of mimetypes
+    /// List of mimetypes used in this ZIM archive
+    mime_table: Vec<String>, // a list of mimetypes
     url_list: Vec<u64>, // a list of offsets
     article_list: Vec<u32>, // a list of indicies into url_list
     cluster_list: Vec<u64>, // a list of offsets
@@ -215,8 +280,11 @@ impl<'a> std::iter::Iterator for DirectoryIterator<'a> {
             };
             let slice = unsafe{ dir_view.as_slice() };
 
-            let entry = DirectoryEntry::new(self.zim, slice);
-            Some(entry)
+            if let Ok(entry) = DirectoryEntry::new(self.zim, slice) {
+                Some(entry)
+            } else {
+                None
+            }
         }
     }
 }
@@ -224,10 +292,11 @@ impl<'a> std::iter::Iterator for DirectoryIterator<'a> {
 impl Zim {
     /// Loads a Zim file
     ///
-    /// Loads a Zim file and parses the header, and the url, title, and cluster offset tables
-    pub fn new<P: AsRef<Path>>(p: P) -> Result<Zim, ()> {
-        let mut f = File::open(p).unwrap();
-        let mmap = Mmap::open(&f, memmap::Protection::Read).unwrap();
+    /// Loads a Zim file and parses the header, and the url, title, and cluster offset tables.  The
+    /// rest of the data isn't parsed until it's needed, so this should be fairly quick.
+    pub fn new<P: AsRef<Path>>(p: P) -> Result<Zim, ParsingError> {
+        let mut f = try!(File::open(p));
+        let mmap = try!(Mmap::open(&f, memmap::Protection::Read));
         let master_view = mmap.into_view();
 
         let header_view = {
@@ -237,21 +306,21 @@ impl Zim {
 
         let mut header_cur = Cursor::new( unsafe{ header_view.as_slice() } );
 
-        let magic = header_cur.read_u32::<LittleEndian>().unwrap();
+        let magic = try!(header_cur.read_u32::<LittleEndian>());
         assert_eq!(magic, 72173914);
-        let version = header_cur.read_u32::<LittleEndian>().unwrap();
-        let uuid_1 = header_cur.read_u64::<LittleEndian>().unwrap();
-        let uuid_2 = header_cur.read_u64::<LittleEndian>().unwrap();
-        let article_count = header_cur.read_u32::<LittleEndian>().unwrap();
-        let cluster_count = header_cur.read_u32::<LittleEndian>().unwrap();
-        let url_ptr_pos = header_cur.read_u64::<LittleEndian>().unwrap();
-        let title_ptr_pos = header_cur.read_u64::<LittleEndian>().unwrap();
-        let cluster_ptr_pos = header_cur.read_u64::<LittleEndian>().unwrap();
-        let mime_list_pos = header_cur.read_u64::<LittleEndian>().unwrap();
+        let version = try!(header_cur.read_u32::<LittleEndian>());
+        let uuid_1 = try!(header_cur.read_u64::<LittleEndian>());
+        let uuid_2 = try!(header_cur.read_u64::<LittleEndian>());
+        let article_count = try!(header_cur.read_u32::<LittleEndian>());
+        let cluster_count = try!(header_cur.read_u32::<LittleEndian>());
+        let url_ptr_pos = try!(header_cur.read_u64::<LittleEndian>());
+        let title_ptr_pos = try!(header_cur.read_u64::<LittleEndian>());
+        let cluster_ptr_pos = try!(header_cur.read_u64::<LittleEndian>());
+        let mime_list_pos = try!(header_cur.read_u64::<LittleEndian>());
         assert_eq!(mime_list_pos, 80);
-        let main_page = header_cur.read_u32::<LittleEndian>().unwrap();
-        let layout_page = header_cur.read_u32::<LittleEndian>().unwrap();
-        let checksum_pos = header_cur.read_u64::<LittleEndian>().unwrap();
+        let main_page = try!(header_cur.read_u32::<LittleEndian>());
+        let layout_page = try!(header_cur.read_u32::<LittleEndian>());
+        let checksum_pos = try!(header_cur.read_u64::<LittleEndian>());
         assert_eq!(header_cur.position(), 80);
 
         println!("version: {}", version);
@@ -269,7 +338,7 @@ impl Zim {
                 if let Ok(size) = header_cur.read_until(0, &mut mime_buf) {
                     if size <= 1 { break; }
                     mime_buf.truncate(size - 1);
-                    mime_table.push(String::from_utf8(mime_buf).unwrap());
+                    mime_table.push(try!(String::from_utf8(mime_buf)));
                 }
             }
             mime_table
@@ -283,7 +352,7 @@ impl Zim {
             let mut url_cur = Cursor::new( unsafe{ url_list_view.as_slice() });
 
             for url_num in 0..article_count {
-                let pointer = url_cur.read_u64::<LittleEndian>().unwrap();
+                let pointer = try!(url_cur.read_u64::<LittleEndian>());
                 list.push(pointer);
             }
             list
@@ -297,7 +366,7 @@ impl Zim {
             let mut art_cur = Cursor::new( unsafe{ art_list_view.as_slice() });
 
             for _ in 0..article_count {
-                let url_number = art_cur.read_u32::<LittleEndian>().unwrap();
+                let url_number = try!(art_cur.read_u32::<LittleEndian>());
                 list.push(url_number);
             }
             list
@@ -312,7 +381,7 @@ impl Zim {
             let mut cluster_cur = Cursor::new( unsafe{ cluster_list_view.as_slice() });
 
             for cluster_num in 0..cluster_count {
-                let pointer = cluster_cur.read_u64::<LittleEndian>().unwrap();
+                let pointer = try!(cluster_cur.read_u64::<LittleEndian>());
                 list.push(pointer);
             }
             list
@@ -343,6 +412,7 @@ impl Zim {
 
     }
 
+    /// Indexes into the ZIM mime_table.  
     pub fn get_mimetype(&self, id: u16) -> Option<MimeType> {
         match id {
             0xffff => Some(MimeType::Redirect),
@@ -359,11 +429,17 @@ impl Zim {
         }
     }
 
+    /// Iterates over articles, sorted by URL.
+    ///
+    /// For performance reasons, you might want to extract by cluster instead.
     pub fn iterate_by_urls(&self) -> DirectoryIterator {
         DirectoryIterator::new(self)     
     }
 
-    pub fn get_by_url_index(&self, idx: u32) -> DirectoryEntry {
+    /// Returns the `DirectoryEntry` for the article found at the given URL index.
+    ///
+    /// idx must be between 0 and `article_count`
+    pub fn get_by_url_index(&self, idx: u32) -> Option<DirectoryEntry> {
         let entry_offset = self.url_list[idx as usize] as usize;
         let dir_view = {
             let mut view = unsafe{ self.master_view.clone() };
@@ -372,11 +448,14 @@ impl Zim {
             view
         };
         let slice = unsafe{ dir_view.as_slice() };
-        DirectoryEntry::new(self, slice)
+        DirectoryEntry::new(self, slice).ok()
     }
 
-    pub fn get_cluster(&self, idx: u32) -> Cluster {
-        Cluster::new(self, idx)
+    /// Returns the given `Cluster`
+    /// 
+    /// idx must be between 0 and `cluster_count`
+    pub fn get_cluster(&self, idx: u32) -> Option<Cluster> {
+        Cluster::new(self, idx).ok()
     }
 
 }
